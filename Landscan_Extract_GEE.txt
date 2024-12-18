@@ -1,0 +1,82 @@
+// Load LandScan Global ImageCollection
+// Extract landscan within each buffer
+var landscan_global = ee.ImageCollection('projects/sat-io/open-datasets/ORNL/LANDSCAN_GLOBAL');
+
+// Load shapefile (buffer areas)
+var buffers10km = ee.FeatureCollection('projects/flu-landscape/assets/buffers10km');
+var buffers25km = ee.FeatureCollection('projects/flu-landscape/assets/buffers25km');
+var buffers50km = ee.FeatureCollection('projects/flu-landscape/assets/buffers50km');
+var buffers100km = ee.FeatureCollection('projects/flu-landscape/assets/buffers100km');
+var buffers150km = ee.FeatureCollection('projects/flu-landscape/assets/buffers150km');
+
+// Function to extract annual sum population for each buffer feature in the shapefile
+var extractPopulationSum = function(startYear, endYear, buffers) {
+  // Create a list to hold the results for each year
+  var results = [];
+
+  // Loop over years from startYear to endYear (2000 to 2022)
+  for (var year = startYear; year <= endYear; year++) {
+    // Filter the population image for the current year
+    var populationImage = landscan_global.filter(ee.Filter.calendarRange(year, year, 'year')).first();
+    
+    // Calculate the sum population count for each buffer using reduceRegions
+    var sumPopulation = populationImage.reduceRegions({
+      collection: buffers,
+      reducer: ee.Reducer.sum(), // Use sum reducer for population count
+      scale: 1000  // Use an appropriate scale for LandScan (approximately 1km resolution)
+    }).map(function(feature) {
+      // Add year to the feature properties
+      return feature.set('year', year);
+    });
+
+    // Add results to the list
+    results.push(sumPopulation);
+  }
+
+  // Return results as a FeatureCollection
+  return ee.FeatureCollection(results).flatten();
+};
+
+// Set the start and end year for the LandScan data
+var startYear = 2000;
+var endYear = 2022;
+
+// Extract sum population count for 10km buffers and export to CSV
+var results10km = extractPopulationSum(startYear, endYear, buffers10km);
+Export.table.toDrive({
+  collection: results10km,
+  description: 'Annual_Population_Sum_10km',
+  fileFormat: 'CSV'
+});
+
+// Extract sum population count for 25km buffers and export to CSV
+var results25km = extractPopulationSum(startYear, endYear, buffers25km);
+Export.table.toDrive({
+  collection: results25km,
+  description: 'Annual_Population_Sum_25km',
+  fileFormat: 'CSV'
+});
+
+// Extract sum population count for 50km buffers and export to CSV
+var results50km = extractPopulationSum(startYear, endYear, buffers50km);
+Export.table.toDrive({
+  collection: results50km,
+  description: 'Annual_Population_Sum_50km',
+  fileFormat: 'CSV'
+});
+
+// Extract sum population count for 100km buffers and export to CSV
+var results100km = extractPopulationSum(startYear, endYear, buffers100km);
+Export.table.toDrive({
+  collection: results100km,
+  description: 'Annual_Population_Sum_100km',
+  fileFormat: 'CSV'
+});
+
+// Extract sum population count for 150km buffers and export to CSV
+var results150km = extractPopulationSum(startYear, endYear, buffers150km);
+Export.table.toDrive({
+  collection: results150km,
+  description: 'Annual_Population_Sum_150km',
+  fileFormat: 'CSV'
+});

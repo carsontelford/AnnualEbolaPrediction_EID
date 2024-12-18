@@ -1,0 +1,166 @@
+// Load MODIS LST ImageCollection
+// Extract LST within each buffer
+var dataset = ee.ImageCollection('MODIS/061/MOD11A2')
+                .filter(ee.Filter.calendarRange(2001, 2024, 'year'))
+                .select('LST_Day_1km');
+
+// Generate list of years from 2001 to 2024
+var years = ee.List.sequence(2001, 2024);
+
+// Load shapefile (buffer areas)
+var buffers10km = ee.FeatureCollection('projects/myproject/assets/buffers10km');
+var buffers25km = ee.FeatureCollection('projects/myproject/assets/buffers25km');
+var buffers50km = ee.FeatureCollection('projects/myproject/assets/buffers50km');
+var buffers100km = ee.FeatureCollection('projects/myproject/assets/buffers100km');
+var buffers150km = ee.FeatureCollection('projects/myproject/assets/buffers150km');
+
+//*10 KM BUFFER EXTRACTION*
+// Function to calculate annual mean LST
+var calculateAnnualLST = function(year) {
+  var startDate = ee.Date.fromYMD(year, 1, 1);
+  var endDate = startDate.advance(1, 'year');
+  
+  // Calculate annual mean LST and convert to Celsius
+  return dataset.filterDate(startDate, endDate).mean()
+    .multiply(0.02) // Convert scale factor to Celsius
+    .subtract(273.15) // Convert from Kelvin to Celsius
+    .set('year', year);
+};
+
+// Function to extract LST for each buffer feature in the shapefile
+var extractLST = function(year) {
+  var annualLST = calculateAnnualLST(year);
+  
+  // Calculate mean LST for each buffer using reduceRegions
+  return annualLST.reduceRegions({
+    collection: buffers10km,
+    reducer: ee.Reducer.mean(),
+    scale: 1000  // MODIS LST scale is 1km
+  }).map(function(feature) {
+    // Add year to the feature properties
+    return feature.set('year', year);
+  });
+};
+
+// Apply the extract function over all years and merge the results into a single FeatureCollection
+var results = ee.FeatureCollection(
+  years.iterate(function(year, prev) {
+    var currentYearResults = extractLST(year);
+    return ee.FeatureCollection(prev).merge(currentYearResults);
+  }, ee.FeatureCollection([]))
+);
+
+// Export the results as CSV, keeping the original properties
+Export.table.toDrive({
+  collection: results,
+  description: 'LST_10km',
+  fileFormat: 'CSV'
+});
+
+
+//*25 KM BUFFER EXTRACTION*
+// Apply the same logic as above for 25 km buffer
+var extractLST_25km = function(year) {
+  var annualLST = calculateAnnualLST(year);
+  return annualLST.reduceRegions({
+    collection: buffers25km,
+    reducer: ee.Reducer.mean(),
+    scale: 1000
+  }).map(function(feature) {
+    return feature.set('year', year);
+  });
+};
+
+var results25km = ee.FeatureCollection(
+  years.iterate(function(year, prev) {
+    var currentYearResults = extractLST_25km(year);
+    return ee.FeatureCollection(prev).merge(currentYearResults);
+  }, ee.FeatureCollection([]))
+);
+
+Export.table.toDrive({
+  collection: results25km,
+  description: 'LST_25km',
+  fileFormat: 'CSV'
+});
+
+
+//*50 KM BUFFER EXTRACTION*
+// Apply the same logic as above for 50 km buffer
+var extractLST_50km = function(year) {
+  var annualLST = calculateAnnualLST(year);
+  return annualLST.reduceRegions({
+    collection: buffers50km,
+    reducer: ee.Reducer.mean(),
+    scale: 1000
+  }).map(function(feature) {
+    return feature.set('year', year);
+  });
+};
+
+var results50km = ee.FeatureCollection(
+  years.iterate(function(year, prev) {
+    var currentYearResults = extractLST_50km(year);
+    return ee.FeatureCollection(prev).merge(currentYearResults);
+  }, ee.FeatureCollection([]))
+);
+
+Export.table.toDrive({
+  collection: results50km,
+  description: 'LST_50km',
+  fileFormat: 'CSV'
+});
+
+
+//*100 KM BUFFER EXTRACTION*
+// Apply the same logic as above for 100 km buffer
+var extractLST_100km = function(year) {
+  var annualLST = calculateAnnualLST(year);
+  return annualLST.reduceRegions({
+    collection: buffers100km,
+    reducer: ee.Reducer.mean(),
+    scale: 1000
+  }).map(function(feature) {
+    return feature.set('year', year);
+  });
+};
+
+var results100km = ee.FeatureCollection(
+  years.iterate(function(year, prev) {
+    var currentYearResults = extractLST_100km(year);
+    return ee.FeatureCollection(prev).merge(currentYearResults);
+  }, ee.FeatureCollection([]))
+);
+
+Export.table.toDrive({
+  collection: results100km,
+  description: 'LST_100km',
+  fileFormat: 'CSV'
+});
+
+
+//*150 KM BUFFER EXTRACTION*
+// Apply the same logic as above for 150 km buffer
+var extractLST_150km = function(year) {
+  var annualLST = calculateAnnualLST(year);
+  return annualLST.reduceRegions({
+    collection: buffers150km,
+    reducer: ee.Reducer.mean(),
+    scale: 1000
+  }).map(function(feature) {
+    return feature.set('year', year);
+  });
+};
+
+var results150km = ee.FeatureCollection(
+  years.iterate(function(year, prev) {
+    var currentYearResults = extractLST_150km(year);
+    return ee.FeatureCollection(prev).merge(currentYearResults);
+  }, ee.FeatureCollection([]))
+);
+
+Export.table.toDrive({
+  collection: results150km,
+  description: 'LST_150km',
+  fileFormat: 'CSV'
+});

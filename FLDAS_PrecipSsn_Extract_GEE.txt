@@ -1,0 +1,62 @@
+// Load FLDAS Rainfall ImageCollection
+// Precipitation seasonality extract
+var dataset = ee.ImageCollection("NASA/FLDAS/NOAH01/C/GL/M/V001")
+                .filter(ee.Filter.calendarRange(2022, 2023, 'year'))
+                .select('Rainf_f_tavg'); // Selecting the average rainfall variable
+
+// Generate a list of years from 2001 to 2024
+var years = ee.List.sequence(2022, 2023);
+
+// Function to calculate annual coefficient of variation (CV) of rainfall
+var calculateAnnualRainfallCV = function(year) {
+  var startDate = ee.Date.fromYMD(year, 1, 1);
+  var endDate = startDate.advance(1, 'year');
+  
+  // Calculate the mean and standard deviation for the year
+  var annualMean = dataset.filterDate(startDate, endDate).mean();
+  var annualStdDev = dataset.filterDate(startDate, endDate).reduce(ee.Reducer.stdDev());
+  
+  // Calculate the coefficient of variation (CV = stddev / mean)
+  var annualCV = annualStdDev.divide(annualMean).set('year', year);
+  return annualCV;
+};
+
+// Initialize a list to store annual CV images
+var annualRainfallCVList = [];
+
+// Loop through each year to calculate the CV
+years.getInfo().forEach(function(year) {
+  var annualRainfallCV = calculateAnnualRainfallCV(year);
+  
+  // Add the annual CV image to the list
+  annualRainfallCVList.push(annualRainfallCV);
+  print('Annual Rainfall CV for year ' + year + ' calculated.');
+});
+
+// Calculate the mean of all annual rainfall CV images (historical average CV)
+var meanAnnualRainfallCV = ee.ImageCollection(annualRainfallCVList).mean();
+
+// Load shapefiles for different buffer sizes
+var predgrid10km = ee.FeatureCollection('projects/flu-landscape/assets/predgrid10km');
+
+// Function to extract mean CV and export results
+var extractMeanRainfallCV = function(bufferCollection, bufferSize) {
+  var meanRainfallCVResult = meanAnnualRainfallCV.reduceRegions({
+    collection: bufferCollection,
+    reducer: ee.Reducer.mean(),
+    scale: 1000  // Adjust scale as necessary
+  });
+  
+  // Print the results to check
+  print('Mean Rainfall CV extraction results for ' + bufferSize + ' buffers:', meanRainfallCVResult);
+  
+  // Export the results as CSV
+  Export.table.toDrive({
+    collection: meanRainfallCVResult,
+    description: 'Mean_Rainfall_CV_' + bufferSize,
+    fileFormat: 'CSV'
+  });
+};
+
+// Extract mean rainfall CV for each buffer size
+extractMeanRainfallCV(predgrid10km, 'Rainfall_CV_baseline_predgrid_10km');

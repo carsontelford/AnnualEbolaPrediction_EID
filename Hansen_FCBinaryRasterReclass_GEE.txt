@@ -1,0 +1,63 @@
+// Load Hansen Global Forest Change Image
+// export binary rasters denoting forest cover vs not forest cover to calculate fragmentation in R
+var hansenDataset = ee.Image("UMD/hansen/global_forest_change_2023_v1_11");
+
+// Define the bounding box for Africa within 10.5 degrees of the equator
+var africaRegion = ee.Geometry.Rectangle({
+  coords: [[-20, -10.5], [55, 10.5]],
+  geodesic: false
+});
+
+// Function to calculate, resample to 1 km, binarize, and export annual forest cover for each year
+var exportBinaryForestCover = function(startYear, endYear) {
+  // Initialize forest cover for the year 2000
+  var forestCover = hansenDataset.select('treecover2000').divide(100); // Convert to proportion (0 to 1 scale)
+  
+  // Loop over years from startYear to endYear
+  for (var year = startYear; year <= endYear; year++) {
+    // Get forest loss for the current year
+    var annualLoss = hansenDataset.select('lossyear').eq(year - 2000).selfMask();
+    
+    // Update forest cover by removing the areas with loss for the current year
+    forestCover = forestCover.where(annualLoss, 0); // Set pixels with loss to 0 for the current year
+
+    // Resample to 1x1 km resolution, filling NA values with 0
+    var forestCoverYearResampled = forestCover.unmask(0).reproject({
+      crs: 'EPSG:4326',
+      scale: 750
+    });
+
+    // Apply binary threshold: 1 if >= 0.5, else 0
+    var binaryForestCover = forestCoverYearResampled.gte(0.2).selfMask();
+
+    // Visualize only for years 2000 and 2023
+    if (year === 2000 || year === 2023) {
+      Map.addLayer(
+        binaryForestCover.clip(africaRegion),
+        {palette: ['gray', 'green']},
+        'Binary Forest Cover (750m) ' + year.toString()
+      );
+    }
+
+    // Export the binary forest cover layer for the current year as a GeoTIFF
+    Export.image.toDrive({
+      image: binaryForestCover.clip(africaRegion),
+      description: 'binaryForestCover_750m' + year.toString(),
+      scale: 750,  // 30x30m resolution
+      region: africaRegion,
+      fileFormat: 'GeoTIFF',
+      crs: 'EPSG:4326',  // Coordinate system
+      maxPixels: 1e13    // To allow export of large images
+    });
+  }
+};
+
+// Set parameters for the function
+var startYear = 2000;
+var endYear = 2023;
+
+// Calculate and export binary forest cover for each year within the defined region
+exportBinaryForestCover(startYear, endYear);
+
+// Center map on Africa within the defined region for visualization
+Map.centerObject(africaRegion, 4);

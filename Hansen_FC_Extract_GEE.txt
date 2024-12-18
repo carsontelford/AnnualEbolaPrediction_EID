@@ -1,0 +1,128 @@
+// Load Hansen Global Forest Change Image
+var hansenDataset = ee.Image("UMD/hansen/global_forest_change_2023_v1_11");
+
+// Load shapefile (buffer areas)
+var buffers10km = ee.FeatureCollection('projects/myproject/assets/buffers10km');
+var buffers25km = ee.FeatureCollection('projects/myproject/assets/buffers25km');
+var buffers50km = ee.FeatureCollection('projects/myproject/assets/buffers50km');
+var buffers100km = ee.FeatureCollection('projects/myproject/assets/buffers100km');
+var buffers150km = ee.FeatureCollection('projects/myproject/assets/buffers150km');
+
+
+// Function to extract annual forest cover for each buffer feature in the shapefile
+var extractForestCover = function(startYear, buffers) {
+  // Initialize forest cover for the year 2000
+  var initialForestCover = hansenDataset.select('treecover2000');
+
+  // Calculate cumulative loss for each year
+  var loss = hansenDataset.select('loss');
+
+  // Create a list to hold the results for each year
+  var results = [];
+
+  // Loop over years from startYear to 2023
+  for (var year = startYear; year <= 2023; year++) {
+    // Calculate forest cover for the current year
+    var forestCoverYear = initialForestCover.subtract(loss.multiply(ee.Image.constant(year - startYear + 1)));
+    
+    // Calculate mean forest cover for each buffer using reduceRegions
+    var meanCover = forestCoverYear.reduceRegions({
+      collection: buffers,
+      reducer: ee.Reducer.mean(),
+      scale: 30  // Hansen dataset has a scale of 30m
+    }).map(function(feature) {
+      // Add year to the feature properties
+      return feature.set('year', year);
+    });
+
+    // Add results to the list
+    results.push(meanCover);
+  }
+
+  // Return results as a FeatureCollection
+  return ee.FeatureCollection(results).flatten();
+};
+
+// Generate a list of years (starting from 2000)
+var startYear = 2000;
+
+// Extract mean forest cover for 10km buffers and export to CSV
+var results10km = extractForestCover(startYear, buffers10km);
+Export.table.toDrive({
+  collection: results10km,
+  description: 'Annual_Forest_Cover_10km',
+  fileFormat: 'CSV'
+});
+
+// Extract mean forest cover for 25km buffers and export to CSV
+var results25km = extractForestCover(startYear, buffers25km);
+Export.table.toDrive({
+  collection: results25km,
+  description: 'Annual_Forest_Cover_25km',
+  fileFormat: 'CSV'
+});
+
+// Extract mean forest cover for 50km buffers and export to CSV
+var results50km = extractForestCover(startYear, buffers50km);
+Export.table.toDrive({
+  collection: results50km,
+  description: 'Annual_Forest_Cover_50km',
+  fileFormat: 'CSV'
+});
+
+// Extract mean forest cover for 100km buffers and export to CSV
+var results100km = extractForestCover(startYear, buffers100km);
+Export.table.toDrive({
+  collection: results100km,
+  description: 'Annual_Forest_Cover_100km',
+  fileFormat: 'CSV'
+});
+
+// Extract mean forest cover for 150km buffers and export to CSV
+var results150km = extractForestCover(startYear, buffers150km);
+Export.table.toDrive({
+  collection: results150km,
+  description: 'Annual_Forest_Cover_150km',
+  fileFormat: 'CSV'
+});
+
+
+
+
+// map annual fc //
+// Load Hansen Global Forest Change Image
+var hansenDataset = ee.Image("UMD/hansen/global_forest_change_2023_v1_11");
+
+// Function to visualize annual forest cover for each year from 2000 to 2020
+var visualizeForestCover = function(startYear, endYear) {
+  // Initialize forest cover for the year 2000
+  var initialForestCover = hansenDataset.select('treecover2000');
+
+  // Calculate cumulative loss for each year
+  var loss = hansenDataset.select('loss');
+
+  // Loop over years from startYear to endYear
+  for (var year = startYear; year <= endYear; year++) {
+    // Calculate forest cover for the current year
+    var forestCoverYear = initialForestCover.subtract(loss.multiply(ee.Image.constant(year - startYear + 1)));
+    
+    // Visualize the forest cover for the current year
+    Map.addLayer(forestCoverYear, {
+      min: 0,
+      max: 100,  // Assuming forest cover is in percentage (0-100%)
+      palette: ['white', 'green']
+    }, 'Forest Cover ' + year);
+  }
+};
+
+// Define the range of years to visualize
+var startYear = 2000;
+var endYear = 2023;
+
+// Visualize forest cover for the specified years
+visualizeForestCover(startYear, endYear);
+
+// Center the map to a region of interest (replace with desired coordinates)
+var longitude = 30;  // Example longitude (replace with actual value)
+var latitude = 1;    // Example latitude (replace with actual value)
+Map.centerObject(ee.Geometry.Point([longitude, latitude]), 6); // Adjust zoom level as needed
