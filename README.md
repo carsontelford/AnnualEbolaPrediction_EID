@@ -8,4 +8,6 @@
  4. tdf_clean: post processed dataset contained covariate values surrounding each presence and absence location, with rows for 24 spillover events and 10000 random absence locations.
 
 Analyses outlined in scripts P1 and P3 require large files that cannot be accomodated on this repository, however R code is provided to outline the processes. tdf_clean contains postprocessed data with covariate values extracted surrounding each presence/absence location, therefore the complete analysis in script P2 can be done with this dataset. 
+
+Additional scripts saved as .txt files contain java script to extract covariates within buffers in google earth engine.
  
